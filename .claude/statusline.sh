@@ -41,7 +41,7 @@ if command -v ccusage >/dev/null 2>&1; then
         TERM_WIDTH=$(tput cols 2>/dev/null || echo "80")
         
         # Build main statusline
-        MAIN_LINE="📂 $REPO_NAME | 🌿 $GIT_BRANCH | $CCUSAGE_OUTPUT"
+        MAIN_LINE="🌿 $GIT_BRANCH | $CCUSAGE_OUTPUT"
         
         # Calculate padding needed (account for emoji width issues)
         CONTENT_LENGTH=${#MAIN_LINE}
