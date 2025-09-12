@@ -10,6 +10,17 @@ SESSION_INFO=$(echo "$SESSION_INFO" | sed 's/"Sonnet 4 (with 1M token context)"/
 if command -v ccusage >/dev/null 2>&1; then
     CCUSAGE_OUTPUT=$(echo "$SESSION_INFO" | ccusage statusline 2>/dev/null)
     if [ $? -eq 0 ] && [ -n "$CCUSAGE_OUTPUT" ]; then
+        # Fix percentage calculation for 1M token models
+        MODEL_NAME=$(echo "$SESSION_INFO" | jq -r '.model.display_name // ""' 2>/dev/null || echo "$SESSION_INFO" | sed -n 's/.*"display_name":"\([^"]*\)".*/\1/p')
+        if [[ "$MODEL_NAME" == *"1M token"* ]] && [[ "$CCUSAGE_OUTPUT" == *"("*"%)"* ]]; then
+            # Extract percentage and recalculate for 1M context (ccusage assumes 200K)
+            CURRENT_PCT=$(echo "$CCUSAGE_OUTPUT" | sed -n 's/.*(\([0-9.]*\)%).*/\1/p')
+            if [ -n "$CURRENT_PCT" ] && [ "$CURRENT_PCT" != "0" ]; then
+                # Recalculate: current_pct * 200K / 1M = current_pct / 5
+                CORRECT_PCT=$(echo "$CURRENT_PCT" | awk '{printf "%.0f", $1 / 5}')
+                CCUSAGE_OUTPUT=$(echo "$CCUSAGE_OUTPUT" | sed "s/($CURRENT_PCT%)/($CORRECT_PCT%)/")
+            fi
+        fi
         # Get git info
         GIT_BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || echo "no-git")
         REPO_NAME=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "no-repo")
