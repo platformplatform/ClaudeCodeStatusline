@@ -13,12 +13,13 @@ if command -v ccusage >/dev/null 2>&1; then
         # Fix percentage calculation for 1M token models
         MODEL_NAME=$(echo "$SESSION_INFO" | jq -r '.model.display_name // ""' 2>/dev/null || echo "$SESSION_INFO" | sed -n 's/.*"display_name":"\([^"]*\)".*/\1/p')
         if [[ "$MODEL_NAME" == *"1M token"* ]] && [[ "$CCUSAGE_OUTPUT" == *"("*"%)"* ]]; then
-            # Extract percentage and recalculate for 1M context (ccusage assumes 200K)
-            CURRENT_PCT=$(echo "$CCUSAGE_OUTPUT" | sed -n 's/.*(\([0-9.]*\)%).*/\1/p')
-            if [ -n "$CURRENT_PCT" ] && [ "$CURRENT_PCT" != "0" ]; then
-                # Recalculate: current_pct * 200K / 1M = current_pct / 5
-                CORRECT_PCT=$(echo "$CURRENT_PCT" | awk '{printf "%.0f", $1 / 5}')
-                CCUSAGE_OUTPUT=$(echo "$CCUSAGE_OUTPUT" | sed "s/($CURRENT_PCT%)/($CORRECT_PCT%)/")
+            # Extract token count and recalculate percentage for correct context window
+            TOKEN_COUNT=$(echo "$CCUSAGE_OUTPUT" | sed -n 's/.*🧠 \([0-9.]*\).*/\1/p')
+            if [ -n "$TOKEN_COUNT" ] && [ "$TOKEN_COUNT" != "0" ]; then
+                # Calculate percentage: tokens / 1M * 100
+                CORRECT_PCT=$(echo "$TOKEN_COUNT" | awk '{printf "%.0f", ($1 * 1000) / 1000000 * 100}')
+                # Replace the incorrect percentage with correct one
+                CCUSAGE_OUTPUT=$(echo "$CCUSAGE_OUTPUT" | sed 's/([0-9.]*%)/('$CORRECT_PCT'%)/')
             fi
         fi
         # Get git info
