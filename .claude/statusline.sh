@@ -29,6 +29,9 @@ if command -v ccusage >/dev/null 2>&1; then
         
         # Add calendar emoji to "today"
         CCUSAGE_OUTPUT=$(echo "$CCUSAGE_OUTPUT" | sed 's/\$\([0-9.]*\) today/📅 $\1 today/')
+        
+        # Swap to group money measures together: session | today | hourly | block | brain
+        CCUSAGE_OUTPUT=$(echo "$CCUSAGE_OUTPUT" | sed 's/\(.*📅 [^|]*\) | \(⏰ [^|]*\) | \(🔥 [^|]*\) | \(.*\)/\1 | \3 | \2 | \4/')
         # Get git info
         GIT_BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || echo "no-git")
         REPO_NAME=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "no-repo")
