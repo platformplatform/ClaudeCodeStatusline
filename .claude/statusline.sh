@@ -3,6 +3,9 @@
 # Parse JSON input from Claude Code
 SESSION_INFO=$(cat)
 
+# Preprocess model name for shorter display
+SESSION_INFO=$(echo "$SESSION_INFO" | sed 's/"Sonnet 4 (with 1M token context)"/"Sonnet 4 (1M tokens)"/g')
+
 # Try using ccusage for accurate calculations first
 if command -v ccusage >/dev/null 2>&1; then
     CCUSAGE_OUTPUT=$(echo "$SESSION_INFO" | ccusage statusline 2>/dev/null)
@@ -75,10 +78,10 @@ fi
 
 # Fallback: Basic statusline if ccusage fails
 if command -v jq >/dev/null 2>&1; then
-    MODEL=$(echo "$SESSION_INFO" | jq -r '.model.display_name // "Unknown Model"' | sed 's/Sonnet 4 (with 1M token context)/Sonnet 4 (1M)/')
+    MODEL=$(echo "$SESSION_INFO" | jq -r '.model.display_name // "Unknown Model"' | sed 's/Sonnet 4 (with 1M token context)/Sonnet 4 (1M tokens)/')
     TOTAL_COST=$(echo "$SESSION_INFO" | jq -r '.cost.total_cost_usd // 0')
 else
-    MODEL=$(echo "$SESSION_INFO" | sed -n 's/.*"display_name":"\([^"]*\)".*/\1/p' | sed 's/Sonnet 4 (with 1M token context)/Sonnet 4 (1M)/')
+    MODEL=$(echo "$SESSION_INFO" | sed -n 's/.*"display_name":"\([^"]*\)".*/\1/p' | sed 's/Sonnet 4 (with 1M token context)/Sonnet 4 (1M tokens)/')
     TOTAL_COST=$(echo "$SESSION_INFO" | sed -n 's/.*"total_cost_usd":\([^,}]*\).*/\1/p')
 fi
 
