@@ -22,6 +22,24 @@ if command -v ccusage >/dev/null 2>&1; then
                 CCUSAGE_OUTPUT=$(echo "$CCUSAGE_OUTPUT" | sed 's/([0-9.]*%)/('$CORRECT_PCT'%)/')
             fi
         fi
+        
+        # Change block format and separators
+        CCUSAGE_OUTPUT=$(echo "$CCUSAGE_OUTPUT" | sed 's/\$[0-9.]*[[:space:]]*block[[:space:]]*(\([^)]*\)[[:space:]]*left)/⏰ New block in \1/')
+        CCUSAGE_OUTPUT=$(echo "$CCUSAGE_OUTPUT" | sed 's/ \/ / | /g')
+        
+        # Add calendar emoji to "today" and reorder elements
+        CCUSAGE_OUTPUT=$(echo "$CCUSAGE_OUTPUT" | sed 's/\$\([0-9.]*\) today/📅 $\1 today/')
+        
+        # Reorder: session | today | hourly | block | tokens
+        # Extract components using regex groups
+        if [[ "$CCUSAGE_OUTPUT" =~ \$([0-9.]*)[[:space:]]*session.*📅[[:space:]]*(\$[0-9.]*[[:space:]]*today).*(\$[0-9.]*\/hr).*⏰[[:space:]]*(New[[:space:]]*block[[:space:]]*in[[:space:]]*[^|]*).*🧠[[:space:]]*([0-9.]*[[:space:]]*\([^)]*\)) ]]; then
+            SESSION="${BASH_REMATCH[1]}"
+            TODAY="${BASH_REMATCH[2]}"
+            HOURLY="${BASH_REMATCH[3]}"
+            BLOCK="${BASH_REMATCH[4]}"
+            TOKENS="${BASH_REMATCH[5]}"
+            CCUSAGE_OUTPUT="💰 \$${SESSION} session | ${TODAY} | 🔥 ${HOURLY} | ⏰ ${BLOCK} | 🧠 ${TOKENS}"
+        fi
         # Get git info
         GIT_BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || echo "no-git")
         REPO_NAME=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "no-repo")
