@@ -57,8 +57,8 @@ if command -v ccusage >/dev/null 2>&1; then
             
             # Convert actual newlines to ↩ emoji using python
             LAST_USER_MSG=$(printf "%s" "$LAST_USER_MSG" | python3 -c "import sys; print(sys.stdin.read().replace('\n', ' ↩ ').strip().rstrip(' ↩'))" | sed 's/  */ /g')
-            if [ ${#LAST_USER_MSG} -gt 180 ]; then
-                LAST_USER_MSG="${LAST_USER_MSG:0:147}..."
+            if [ ${#LAST_USER_MSG} -gt 140 ]; then
+                LAST_USER_MSG="${LAST_USER_MSG:0:137}..."
             fi
         fi
         
