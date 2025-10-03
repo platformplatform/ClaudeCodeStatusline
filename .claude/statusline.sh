@@ -4,7 +4,8 @@
 SESSION_INFO=$(cat)
 
 # Preprocess model name for shorter display
-SESSION_INFO=$(echo "$SESSION_INFO" | sed 's/"Sonnet 4 (with 1M token context)"/"Sonnet 4 (1M tokens)"/g')
+SESSION_INFO=$(echo "$SESSION_INFO" | sed 's/"Sonnet 4 (with 1M token context)"/"Sonnet 4 (1M)"/g')
+SESSION_INFO=$(echo "$SESSION_INFO" | sed 's/"Sonnet 4.5 (with 1M token context)"/"Sonnet 4.5 (1M)"/g')
 
 # Try using ccusage for accurate calculations first
 if command -v ccusage >/dev/null 2>&1; then
@@ -32,9 +33,6 @@ if command -v ccusage >/dev/null 2>&1; then
         
         # Swap to group money measures together: session | today | hourly | block | brain
         CCUSAGE_OUTPUT=$(echo "$CCUSAGE_OUTPUT" | sed 's/\(.*📅 [^|]*\) | \(⏰ [^|]*\) | \(🔥 [^|]*\) | \(.*\)/\1 | \3 | \2 | \4/')
-        # Get git info
-        GIT_BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || echo "no-git")
-        REPO_NAME=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "no-repo")
         
         # Extract session_id and construct current transcript path
         SESSION_ID=$(echo "$SESSION_INFO" | jq -r '.session_id // ""' 2>/dev/null || echo "$SESSION_INFO" | sed -n 's/.*"session_id":"\([^"]*\)".*/\1/p')
@@ -66,7 +64,7 @@ if command -v ccusage >/dev/null 2>&1; then
         TERM_WIDTH=$(tput cols 2>/dev/null || echo "80")
         
         # Build main statusline
-        MAIN_LINE="🌿 $GIT_BRANCH | $CCUSAGE_OUTPUT"
+        MAIN_LINE="$CCUSAGE_OUTPUT"
         
         # Calculate padding needed (account for emoji width issues)
         CONTENT_LENGTH=${#MAIN_LINE}
@@ -100,15 +98,14 @@ fi
 
 # Fallback: Basic statusline if ccusage fails
 if command -v jq >/dev/null 2>&1; then
-    MODEL=$(echo "$SESSION_INFO" | jq -r '.model.display_name // "Unknown Model"' | sed 's/Sonnet 4 (with 1M token context)/Sonnet 4 (1M tokens)/')
+    MODEL=$(echo "$SESSION_INFO" | jq -r '.model.display_name // "Unknown Model"' | sed 's/Sonnet 4 (with 1M token context)/Sonnet 4 (1M)/' | sed 's/Sonnet 4.5 (with 1M token context)/Sonnet 4.5 (1M)/')
     TOTAL_COST=$(echo "$SESSION_INFO" | jq -r '.cost.total_cost_usd // 0')
 else
-    MODEL=$(echo "$SESSION_INFO" | sed -n 's/.*"display_name":"\([^"]*\)".*/\1/p' | sed 's/Sonnet 4 (with 1M token context)/Sonnet 4 (1M tokens)/')
+    MODEL=$(echo "$SESSION_INFO" | sed -n 's/.*"display_name":"\([^"]*\)".*/\1/p' | sed 's/Sonnet 4 (with 1M token context)/Sonnet 4 (1M)/' | sed 's/Sonnet 4.5 (with 1M token context)/Sonnet 4.5 (1M)/')
     TOTAL_COST=$(echo "$SESSION_INFO" | sed -n 's/.*"total_cost_usd":\([^,}]*\).*/\1/p')
 fi
 
-GIT_BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || echo "no-git")
 export LC_NUMERIC=C
 SESSION_COST=$(echo "$TOTAL_COST" | awk '{printf "%.2f", $1}')
 
-echo "🌿 $GIT_BRANCH | 🤖 $MODEL | 💰 \$$SESSION_COST session"
+echo "🤖 $MODEL | 💰 \$$SESSION_COST session"
