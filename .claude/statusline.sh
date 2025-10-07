@@ -9,21 +9,8 @@ SESSION_INFO=$(echo "$SESSION_INFO" | sed 's/"Sonnet 4.5 (with 1M token context)
 
 # Try using ccusage for accurate calculations first
 if command -v ccusage >/dev/null 2>&1; then
-    CCUSAGE_OUTPUT=$(echo "$SESSION_INFO" | ccusage statusline 2>/dev/null)
+    CCUSAGE_OUTPUT=$(echo "$SESSION_INFO" | ccusage statusline --no-cache 2>/dev/null)
     if [ $? -eq 0 ] && [ -n "$CCUSAGE_OUTPUT" ]; then
-        # Fix percentage calculation for 1M token models
-        MODEL_NAME=$(echo "$SESSION_INFO" | jq -r '.model.display_name // ""' 2>/dev/null || echo "$SESSION_INFO" | sed -n 's/.*"display_name":"\([^"]*\)".*/\1/p')
-        if [[ "$MODEL_NAME" == *"1M token"* ]] && [[ "$CCUSAGE_OUTPUT" == *"("*"%)"* ]]; then
-            # Extract token count and recalculate percentage for correct context window
-            TOKEN_COUNT=$(echo "$CCUSAGE_OUTPUT" | sed -n 's/.*🧠 \([0-9.]*\).*/\1/p')
-            if [ -n "$TOKEN_COUNT" ] && [ "$TOKEN_COUNT" != "0" ]; then
-                # Calculate percentage: tokens / 1M * 100
-                CORRECT_PCT=$(echo "$TOKEN_COUNT" | awk '{printf "%.0f", ($1 * 1000) / 1000000 * 100}')
-                # Replace the incorrect percentage with correct one
-                CCUSAGE_OUTPUT=$(echo "$CCUSAGE_OUTPUT" | sed 's/([0-9.]*%)/('$CORRECT_PCT'%)/')
-            fi
-        fi
-        
         # Change block format and separators
         CCUSAGE_OUTPUT=$(echo "$CCUSAGE_OUTPUT" | sed 's/\$[0-9.]*[[:space:]]*block[[:space:]]*(\([^)]*\)[[:space:]]*left)/⏰ New block in \1/')
         CCUSAGE_OUTPUT=$(echo "$CCUSAGE_OUTPUT" | sed 's/ \/ / | /g')
@@ -42,8 +29,47 @@ if command -v ccusage >/dev/null 2>&1; then
         ENCODED_PATH=$(echo "$CWD" | sed 's/\//-/g' | sed 's/\./-/g')
         CURRENT_TRANSCRIPT="$HOME/.claude/projects/$ENCODED_PATH/$SESSION_ID.jsonl"
         LAST_USER_MSG=""
-        
-        
+
+        # Change block format and separators FIRST (before token replacement)
+        CCUSAGE_OUTPUT=$(echo "$CCUSAGE_OUTPUT" | sed 's/\$[0-9.]*[[:space:]]*block[[:space:]]*(\([^)]*\)[[:space:]]*left)/⏰ New block in \1/')
+        CCUSAGE_OUTPUT=$(echo "$CCUSAGE_OUTPUT" | sed 's/ \/ / | /g')
+
+        # Calendar emoji removed - was causing double emoji bug
+        # Swap to group money measures together: session | today | hourly | block | brain
+        CCUSAGE_OUTPUT=$(echo "$CCUSAGE_OUTPUT" | sed 's/\(.*today\) | \(⏰ [^|]*\) | \(🔥 [^|]*\) | \(.*\)/\1 | \3 | \2 | \4/')
+
+        # Calculate real token count from transcript and replace at the END (ccusage is broken)
+        REAL_TOKEN_COUNT=0
+        REAL_TOKEN_PCT=0
+        if [ -n "$CURRENT_TRANSCRIPT" ] && [ -f "$CURRENT_TRANSCRIPT" ]; then
+            # Get the cumulative context from the LAST assistant message
+            LAST_USAGE=$(grep '"type":"assistant"' "$CURRENT_TRANSCRIPT" | tail -1 | jq -r '.message.usage // empty' 2>/dev/null)
+            if [ -n "$LAST_USAGE" ]; then
+                # Calculate total context: input + cached + output tokens
+                INPUT=$(echo "$LAST_USAGE" | jq -r '.input_tokens // 0')
+                CACHED=$(echo "$LAST_USAGE" | jq -r '.cache_read_input_tokens // 0')
+                OUTPUT=$(echo "$LAST_USAGE" | jq -r '.output_tokens // 0')
+                REAL_TOKEN_COUNT=$((INPUT + CACHED + OUTPUT))
+
+                # Determine context window size
+                MODEL_NAME=$(echo "$SESSION_INFO" | jq -r '.model.display_name // ""' 2>/dev/null || echo "$SESSION_INFO" | sed -n 's/.*"display_name":"\([^"]*\)".*/\1/p')
+                CONTEXT_WINDOW=200000
+                if [[ "$MODEL_NAME" == *"1M"* ]]; then
+                    CONTEXT_WINDOW=1000000
+                fi
+
+                # Calculate percentage
+                if [ "$REAL_TOKEN_COUNT" -gt 0 ]; then
+                    REAL_TOKEN_PCT=$(echo "$REAL_TOKEN_COUNT $CONTEXT_WINDOW" | awk '{printf "%.0f", ($1 / $2) * 100}')
+                    # Format token count with thousands separator
+                    REAL_TOKEN_FORMATTED=$(echo "$REAL_TOKEN_COUNT" | awk '{printf "%.3f", $1/1000}')
+                    # Replace ccusage's broken token count
+                    NEW_TOKEN_DISPLAY="| 🧠 $REAL_TOKEN_FORMATTED ($REAL_TOKEN_PCT%)"
+                    CCUSAGE_OUTPUT=$(echo "$CCUSAGE_OUTPUT" | python3 -c "import sys, re; line = sys.stdin.read(); replacement = '''$NEW_TOKEN_DISPLAY'''; print(re.sub(r'\| 🧠 [^|]*$', replacement, line), end='')")
+                fi
+            fi
+        fi
+
         if [ -n "$CURRENT_TRANSCRIPT" ] && [ -f "$CURRENT_TRANSCRIPT" ]; then
             # Get last actual user text message (skip tool results and interruptions)
             LAST_USER_MSG=$(grep '"type":"user"' "$CURRENT_TRANSCRIPT" | grep -v '"type":"tool_result"' | tail -1 | jq -r 'if (.message.content | type) == "string" then .message.content else .message.content[0].text // "" end' 2>/dev/null || echo "")
