@@ -132,3 +132,4 @@ Current format displays two lines:
 - Auto-detects terminal width with `tput cols`
 - Pads both lines to fill entire terminal width
 - Truncates user messages to prevent line wrapping
+- Never update the global status line until I have tested it in this reposiotry and approved that you can update the global status line.
