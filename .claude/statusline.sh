@@ -77,9 +77,33 @@ if command -v ccusage >/dev/null 2>&1; then
         # Swap to group money measures together: session | today | hourly | block | brain
         CCUSAGE_OUTPUT=$(echo "$CCUSAGE_OUTPUT" | sed 's/\(.*📅 [^|]*\) | \(⏰ [^|]*\) | \(🔥 [^|]*\) | \(.*\)/\1 | \3 | \2 | \4/')
 
-        # Output single line statusline
-        echo "$CCUSAGE_OUTPUT"
-        
+        # Add Agnoster-style context (directory + git info)
+        CURRENT_DIR=$(basename "$CWD")
+        GIT_INFO=""
+
+        # Get git branch and status (matching Agnoster theme)
+        if [ -d "$CWD/.git" ]; then
+            cd "$CWD" 2>/dev/null || true
+            BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+            if [ -n "$BRANCH" ]; then
+                # Check for dirty/clean status
+                if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
+                    GIT_INFO="± $BRANCH"
+                else
+                    GIT_INFO="✓ $BRANCH"
+                fi
+            fi
+        fi
+
+        # Build location context (like Agnoster)
+        LOCATION="📁 $CURRENT_DIR"
+        if [ -n "$GIT_INFO" ]; then
+            LOCATION="$LOCATION | $GIT_INFO"
+        fi
+
+        # Output single line statusline with location first
+        echo "$LOCATION | $CCUSAGE_OUTPUT"
+
         exit 0
     fi
 fi
@@ -88,12 +112,35 @@ fi
 if command -v jq >/dev/null 2>&1; then
     MODEL=$(echo "$SESSION_INFO" | jq -r '.model.display_name // "Unknown Model"' | sed 's/Sonnet 4 (with 1M token context)/Sonnet 4 (1M)/' | sed 's/Sonnet 4.5 (with 1M token context)/Sonnet 4.5 (1M)/')
     TOTAL_COST=$(echo "$SESSION_INFO" | jq -r '.cost.total_cost_usd // 0')
+    CWD=$(echo "$SESSION_INFO" | jq -r '.cwd // ""')
 else
     MODEL=$(echo "$SESSION_INFO" | sed -n 's/.*"display_name":"\([^"]*\)".*/\1/p' | sed 's/Sonnet 4 (with 1M token context)/Sonnet 4 (1M)/' | sed 's/Sonnet 4.5 (with 1M token context)/Sonnet 4.5 (1M)/')
     TOTAL_COST=$(echo "$SESSION_INFO" | sed -n 's/.*"total_cost_usd":\([^,}]*\).*/\1/p')
+    CWD=$(echo "$SESSION_INFO" | sed -n 's/.*"cwd":"\([^"]*\)".*/\1/p')
 fi
 
 export LC_NUMERIC=C
 SESSION_COST=$(echo "$TOTAL_COST" | awk '{printf "%.2f", $1}')
 
-echo "🤖 $MODEL | 💰 \$$SESSION_COST session"
+# Add Agnoster-style context to fallback
+CURRENT_DIR=$(basename "$CWD")
+GIT_INFO=""
+
+if [ -d "$CWD/.git" ]; then
+    cd "$CWD" 2>/dev/null || true
+    BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+    if [ -n "$BRANCH" ]; then
+        if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
+            GIT_INFO="± $BRANCH"
+        else
+            GIT_INFO="✓ $BRANCH"
+        fi
+    fi
+fi
+
+LOCATION="📁 $CURRENT_DIR"
+if [ -n "$GIT_INFO" ]; then
+    LOCATION="$LOCATION | $GIT_INFO"
+fi
+
+echo "$LOCATION | 🤖 $MODEL | 💰 \$$SESSION_COST session"
