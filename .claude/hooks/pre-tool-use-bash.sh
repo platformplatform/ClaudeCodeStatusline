@@ -11,45 +11,13 @@ cmd=$(echo "$input" | sed -n 's/.*"command":"\([^"]*\)".*/\1/p')
 
 # Check the command and decide whether to block it
 case "$cmd" in
-    *"git merge"*|*"git rebase"*|*"git cherry-pick"*|*"git reset"*|*"git revert"*|*"git stash"*|*"git branch -"*|*"git tag"*|*"git rm"*|*"git clean"*|*"git push"*|*"git remote"*|*"git config"*)
-        echo "❌ BLOCKED: This git operation could affect your repository in unexpected ways" >&2
-        echo "Command attempted: $cmd" >&2
-        echo "" >&2
-        echo "Please run this command yourself if you want to proceed." >&2
-        echo "Only 'git add' and 'git commit' are allowed for AI use." >&2
-        echo "" >&2
-        echo "Ask the user: 'Would you like to run this command yourself?'" >&2
-        exit 2  # Exit code 2 blocks the tool call
-        ;;
-    *"dotnet build"*|*"dotnet test"*|*"dotnet format"*)
-        echo "❌ BLOCKED: Use pp CLI instead of dotnet commands" >&2
-        echo "Command: $cmd" >&2
-        echo "" >&2
-        echo "Use these instead:" >&2
-        echo "• dotnet build → pp build" >&2
-        echo "• dotnet test → pp test" >&2
-        echo "• dotnet format → pp format" >&2
-        exit 2  # Exit code 2 blocks the tool call
-        ;;
-    *"npm run format"*|*"npm test"*|*"npm run build"*)
-        echo "❌ BLOCKED: Use pp CLI instead of npm commands" >&2
-        echo "Command: $cmd" >&2
-        echo "" >&2
-        echo "Use these instead:" >&2
-        echo "• npm run format → pp format" >&2
-        echo "• npm test → pp test" >&2
-        echo "• npm run build → pp build" >&2
-        exit 2  # Exit code 2 blocks the tool call
-        ;;
-    *"npx playwright test"*)
-        echo "❌ BLOCKED: Use pp CLI instead of npx commands" >&2
-        echo "Command: $cmd" >&2
-        echo "" >&2
-        echo "Use these instead:" >&2
-        echo "• npx playwright test → pp e2e" >&2
-        exit 2  # Exit code 2 blocks the tool call
-        ;;
-    *)
-        exit 0  # Exit code 0 allows the tool call to proceed
-        ;;
+    *"git merge"*|*"git rebase"*|*"git cherry-pick"*|*"git reset"*|*"git revert"*|*"git branch -"*|*"git tag"*|*"git rm"*|*"git clean"*|*"git push"*|*"git remote"*|*"git config"*) echo "❌ Dangerous git operation. Only 'git add' and 'git commit' allowed. Run this yourself." >&2; exit 2 ;;
+    *"dotnet build"*) echo "❌ Use **build** pp command instead" >&2; exit 2 ;;
+    *"dotnet test"*) echo "❌ Use **test** pp command instead" >&2; exit 2 ;;
+    *"dotnet format"*) echo "❌ Use **format** pp command instead" >&2; exit 2 ;;
+    *"npm run format"*) echo "❌ Use **format** pp command instead" >&2; exit 2 ;;
+    *"npm test"*) echo "❌ Use **test** pp command instead" >&2; exit 2 ;;
+    *"npm run build"*) echo "❌ Use **build** pp command instead" >&2; exit 2 ;;
+    *"npx playwright test"*) echo "❌ Use **e2e** pp command instead" >&2; exit 2 ;;
+    *) exit 0 ;;
 esac
