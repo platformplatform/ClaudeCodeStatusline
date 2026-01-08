@@ -3,8 +3,7 @@
 # =============================================================================
 # Claude Code Custom Status Line Script
 # =============================================================================
-# Simple token display from current_usage.
-# Note: These values may undercount vs /context by ~15-20%.
+# Features: tokens, git status, session duration, API response time, costs
 # =============================================================================
 
 json_input=$(cat)
@@ -16,11 +15,20 @@ current_directory=$(echo "$json_input" | jq -r '.workspace.current_dir // .cwd')
 directory_name=$(basename "$current_directory")
 
 # -----------------------------------------------------------------------------
-# Git branch
+# Git branch + dirty/clean indicator
 # -----------------------------------------------------------------------------
-git_branch=""
+git_display=""
 if git -C "$current_directory" rev-parse --git-dir > /dev/null 2>&1; then
     git_branch=$(git -C "$current_directory" --no-optional-locks rev-parse --abbrev-ref HEAD 2>/dev/null)
+    if [ -n "$git_branch" ]; then
+        # Check for uncommitted changes (dirty)
+        if git -C "$current_directory" --no-optional-locks diff --quiet 2>/dev/null && \
+           git -C "$current_directory" --no-optional-locks diff --cached --quiet 2>/dev/null; then
+            git_display="🌿 $git_branch"
+        else
+            git_display="🌿 $git_branch *"
+        fi
+    fi
 fi
 
 # -----------------------------------------------------------------------------
@@ -35,19 +43,54 @@ token_details=""
 usage=$(echo "$json_input" | jq '.context_window.current_usage')
 
 if [ "$usage" != "null" ]; then
-    # Input tokens = uncached + cached
     input_tokens=$(echo "$usage" | jq -r '.input_tokens // 0')
     cache_read=$(echo "$usage" | jq -r '.cache_read_input_tokens // 0')
     cache_creation=$(echo "$usage" | jq -r '.cache_creation_input_tokens // 0')
     total_input=$((input_tokens + cache_read + cache_creation))
 
-    # Cumulative session output
     session_output=$(echo "$json_input" | jq -r '.context_window.total_output_tokens // 0')
 
-    # Format
     input_k=$((total_input / 1000))
     output_k=$((session_output / 1000))
-    token_details="📥 ${input_k}k 📤 ${output_k}k"
+
+    # Color coding based on context usage (warning for autocompact)
+    # Yellow > 120k, Red > 140k
+    if [ "$total_input" -gt 140000 ]; then
+        # Red
+        token_details="\033[31m📥 ${input_k}k 📤 ${output_k}k\033[0m"
+    elif [ "$total_input" -gt 120000 ]; then
+        # Yellow
+        token_details="\033[33m📥 ${input_k}k 📤 ${output_k}k\033[0m"
+    else
+        token_details="📥 ${input_k}k 📤 ${output_k}k"
+    fi
+fi
+
+# -----------------------------------------------------------------------------
+# Session duration (from cost.total_duration_ms)
+# -----------------------------------------------------------------------------
+session_duration=""
+total_duration_ms=$(echo "$json_input" | jq -r '.cost.total_duration_ms // 0')
+if [ "$total_duration_ms" -gt 0 ] 2>/dev/null; then
+    total_seconds=$((total_duration_ms / 1000))
+    hours=$((total_seconds / 3600))
+    minutes=$(((total_seconds % 3600) / 60))
+    if [ "$hours" -gt 0 ]; then
+        session_duration="${hours}h${minutes}m"
+    else
+        session_duration="${minutes}m"
+    fi
+fi
+
+# -----------------------------------------------------------------------------
+# Last API response time (from cost.total_api_duration_ms / message count estimate)
+# -----------------------------------------------------------------------------
+api_time=""
+total_api_ms=$(echo "$json_input" | jq -r '.cost.total_api_duration_ms // 0')
+if [ "$total_api_ms" -gt 0 ] 2>/dev/null; then
+    # Show total API time in seconds
+    api_seconds=$((total_api_ms / 1000))
+    api_time="⧖ ${api_seconds}s"
 fi
 
 # -----------------------------------------------------------------------------
@@ -55,7 +98,16 @@ fi
 # -----------------------------------------------------------------------------
 ccusage_output=$(echo "$json_input" | ccusage statusline --no-offline --cost-source cc --no-cache 2>/dev/null)
 
-session_cost=$(echo "$ccusage_output" | sed -n 's/.*\$\([0-9.]*\) session.*/💰 $\1 session/p')
+# Extract session cost (we'll append duration to it)
+session_cost_raw=$(echo "$ccusage_output" | sed -n 's/.*\$\([0-9.]*\) session.*/\1/p')
+if [ -n "$session_cost_raw" ] && [ -n "$session_duration" ]; then
+    session_cost="💰 \$${session_cost_raw} (${session_duration})"
+elif [ -n "$session_cost_raw" ]; then
+    session_cost="💰 \$${session_cost_raw} session"
+else
+    session_cost=""
+fi
+
 block_time=$(echo "$ccusage_output" | sed -n 's/.*\$[0-9.]* block (\([^)]*\) left).*/⏰️ New block in \1/p')
 daily_cost=$(echo "$ccusage_output" | sed -n 's/.*\$\([0-9.]*\) today.*/📅 $\1 today/p')
 
@@ -64,11 +116,12 @@ daily_cost=$(echo "$ccusage_output" | sed -n 's/.*\$\([0-9.]*\) today.*/📅 $\1
 # -----------------------------------------------------------------------------
 output="📁 $directory_name"
 
-[ -n "$git_branch" ] && output="$output | 🌿 $git_branch"
+[ -n "$git_display" ] && output="$output | $git_display"
 [ -n "$model_display_name" ] && output="$output | 🤖 $model_display_name"
 [ -n "$token_details" ] && output="$output | $token_details"
+[ -n "$api_time" ] && output="$output | $api_time"
 [ -n "$block_time" ] && output="$output | $block_time"
 [ -n "$session_cost" ] && output="$output | $session_cost"
 [ -n "$daily_cost" ] && output="$output | $daily_cost"
 
-echo "$output"
+echo -e "$output"
