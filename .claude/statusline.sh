@@ -26,7 +26,8 @@ if git -C "$current_directory" rev-parse --git-dir > /dev/null 2>&1; then
            git -C "$current_directory" --no-optional-locks diff --cached --quiet 2>/dev/null; then
             git_display="🌿 $git_branch"
         else
-            git_display="🌿 $git_branch *"
+            # Yellow when dirty
+            git_display="\033[33m🌿 $git_branch *\033[0m"
         fi
     fi
 fi
