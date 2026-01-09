@@ -34,8 +34,8 @@ if git -C "$current_directory" rev-parse --git-dir > /dev/null 2>&1; then
         if git -C "$current_directory" --no-optional-locks rev-parse --abbrev-ref '@{upstream}' >/dev/null 2>&1; then
             behind=$(git -C "$current_directory" --no-optional-locks rev-list --count HEAD..@{upstream} 2>/dev/null || echo "0")
             ahead=$(git -C "$current_directory" --no-optional-locks rev-list --count @{upstream}..HEAD 2>/dev/null || echo "0")
-            [ "$behind" -gt 0 ] 2>/dev/null && ahead_behind="↓$behind"
-            [ "$ahead" -gt 0 ] 2>/dev/null && ahead_behind="$ahead_behind↑$ahead"
+            [ "$behind" -gt 0 ] 2>/dev/null && ahead_behind="⬇$behind"
+            [ "$ahead" -gt 0 ] 2>/dev/null && ahead_behind="$ahead_behind⬆$ahead"
             [ -n "$ahead_behind" ] && ahead_behind=" $ahead_behind"
         fi
 
