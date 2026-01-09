@@ -15,7 +15,7 @@ current_directory=$(echo "$json_input" | jq -r '.workspace.current_dir // .cwd')
 directory_name=$(basename "$current_directory")
 
 # -----------------------------------------------------------------------------
-# Git branch + dirty/clean indicator
+# Git branch + dirty/clean indicator + ahead/behind remote
 # -----------------------------------------------------------------------------
 git_display=""
 if git -C "$current_directory" rev-parse --git-dir > /dev/null 2>&1; then
@@ -24,10 +24,27 @@ if git -C "$current_directory" rev-parse --git-dir > /dev/null 2>&1; then
         # Check for uncommitted changes (dirty)
         if git -C "$current_directory" --no-optional-locks diff --quiet 2>/dev/null && \
            git -C "$current_directory" --no-optional-locks diff --cached --quiet 2>/dev/null; then
-            git_display="🌿 $git_branch"
+            is_dirty=false
         else
+            is_dirty=true
+        fi
+
+        # Check ahead/behind remote
+        ahead_behind=""
+        if git -C "$current_directory" --no-optional-locks rev-parse --abbrev-ref '@{upstream}' >/dev/null 2>&1; then
+            behind=$(git -C "$current_directory" --no-optional-locks rev-list --count HEAD..@{upstream} 2>/dev/null || echo "0")
+            ahead=$(git -C "$current_directory" --no-optional-locks rev-list --count @{upstream}..HEAD 2>/dev/null || echo "0")
+            [ "$behind" -gt 0 ] 2>/dev/null && ahead_behind="↓$behind"
+            [ "$ahead" -gt 0 ] 2>/dev/null && ahead_behind="$ahead_behind↑$ahead"
+            [ -n "$ahead_behind" ] && ahead_behind=" $ahead_behind"
+        fi
+
+        # Build git display
+        if [ "$is_dirty" = true ]; then
             # Yellow when dirty
-            git_display="\033[33m🌿 $git_branch *\033[0m"
+            git_display="\033[33m🌿 $git_branch *$ahead_behind\033[0m"
+        else
+            git_display="🌿 $git_branch$ahead_behind"
         fi
     fi
 fi
