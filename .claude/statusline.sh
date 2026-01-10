@@ -84,11 +84,11 @@ if [ "$usage" != "null" ]; then
     percentage=$((total_input * 100 / context_window))
 
     # Color coding based on context usage (warning for autocompact)
-    # Yellow > 120k, Red > 140k
-    if [ "$total_input" -gt 140000 ]; then
+    # Yellow > 60%, Red > 70%
+    if [ "$percentage" -gt 70 ]; then
         # Red
         token_details="\033[31m🧠 ${percentage}% | 📥 ${input_k}k 📤 ${output_k}k\033[0m"
-    elif [ "$total_input" -gt 120000 ]; then
+    elif [ "$percentage" -gt 60 ]; then
         # Yellow
         token_details="\033[33m🧠 ${percentage}% | 📥 ${input_k}k 📤 ${output_k}k\033[0m"
     else
