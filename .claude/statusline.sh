@@ -80,8 +80,8 @@ if [ "$usage" != "null" ]; then
         context_window=200000
     fi
 
-    # Calculate percentage
-    percentage=$((total_input * 100 / context_window))
+    # Calculate percentage (round up)
+    percentage=$(((total_input * 100 + context_window - 1) / context_window))
 
     # Color coding based on context usage (warning for autocompact)
     # Yellow > 60%, Red > 70%
