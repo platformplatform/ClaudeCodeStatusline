@@ -87,12 +87,12 @@ if [ "$usage" != "null" ]; then
     # Yellow > 120k, Red > 140k
     if [ "$total_input" -gt 140000 ]; then
         # Red
-        token_details="\033[31m📥 ${input_k}k 📤 ${output_k}k 🧠 ${percentage}%\033[0m"
+        token_details="\033[31m🧠 ${percentage}% | 📥 ${input_k}k 📤 ${output_k}k\033[0m"
     elif [ "$total_input" -gt 120000 ]; then
         # Yellow
-        token_details="\033[33m📥 ${input_k}k 📤 ${output_k}k 🧠 ${percentage}%\033[0m"
+        token_details="\033[33m🧠 ${percentage}% | 📥 ${input_k}k 📤 ${output_k}k\033[0m"
     else
-        token_details="📥 ${input_k}k 📤 ${output_k}k 🧠 ${percentage}%"
+        token_details="🧠 ${percentage}% | 📥 ${input_k}k 📤 ${output_k}k"
     fi
 fi
 
