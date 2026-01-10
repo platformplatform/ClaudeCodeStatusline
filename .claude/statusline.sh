@@ -44,7 +44,7 @@ if git -C "$current_directory" rev-parse --git-dir > /dev/null 2>&1; then
         # Build git display
         if [ "$is_dirty" = true ]; then
             # Yellow when dirty
-            git_display="\033[33m🌿 $git_branch *$ahead_behind\033[0m"
+            git_display="\033[33m🌿 $git_branch$ahead_behind\033[0m"
         else
             git_display="🌿 $git_branch$ahead_behind"
         fi
@@ -57,7 +57,7 @@ fi
 model_display_name=$(echo "$json_input" | jq -r '.model.display_name' | sed 's/ context)/)/g')
 
 # -----------------------------------------------------------------------------
-# Token counts
+# Token counts + percentage
 # -----------------------------------------------------------------------------
 token_details=""
 usage=$(echo "$json_input" | jq '.context_window.current_usage')
@@ -73,16 +73,26 @@ if [ "$usage" != "null" ]; then
     input_k=$((total_input / 1000))
     output_k=$((session_output / 1000))
 
+    # Determine context window size based on model
+    if echo "$model_display_name" | grep -q "(1M)"; then
+        context_window=1000000
+    else
+        context_window=200000
+    fi
+
+    # Calculate percentage
+    percentage=$((total_input * 100 / context_window))
+
     # Color coding based on context usage (warning for autocompact)
     # Yellow > 120k, Red > 140k
     if [ "$total_input" -gt 140000 ]; then
         # Red
-        token_details="\033[31m📥 ${input_k}k 📤 ${output_k}k\033[0m"
+        token_details="\033[31m📥 ${input_k}k 📤 ${output_k}k 🧠 ${percentage}%\033[0m"
     elif [ "$total_input" -gt 120000 ]; then
         # Yellow
-        token_details="\033[33m📥 ${input_k}k 📤 ${output_k}k\033[0m"
+        token_details="\033[33m📥 ${input_k}k 📤 ${output_k}k 🧠 ${percentage}%\033[0m"
     else
-        token_details="📥 ${input_k}k 📤 ${output_k}k"
+        token_details="📥 ${input_k}k 📤 ${output_k}k 🧠 ${percentage}%"
     fi
 fi
 
