@@ -70,8 +70,8 @@ if [ "$usage" != "null" ]; then
 
     session_output=$(echo "$json_input" | jq -r '.context_window.total_output_tokens // 0')
 
-    input_k=$((total_input / 1000))
-    output_k=$((session_output / 1000))
+    input_k=$(((total_input + 999) / 1000))
+    output_k=$(((session_output + 999) / 1000))
 
     # Determine context window size based on model
     if echo "$model_display_name" | grep -q "(1M)"; then
