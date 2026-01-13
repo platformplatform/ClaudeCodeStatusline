@@ -73,26 +73,50 @@ if [ "$usage" != "null" ]; then
     input_k=$(((total_input + 999) / 1000))
     output_k=$(((session_output + 999) / 1000))
 
-    # Determine context window size based on model
+    # Calculate our own percentage
     if echo "$model_display_name" | grep -q "(1M)"; then
         context_window=1000000
     else
         context_window=200000
     fi
+    our_percentage=$(((total_input * 100 + context_window - 1) / context_window))
 
-    # Calculate percentage (round up)
-    percentage=$(((total_input * 100 + context_window - 1) / context_window))
+    # Try to get official percentages from Claude Code
+    used_pct=$(echo "$json_input" | jq -r '.context_window.used_percentage // empty')
+    remaining_pct=$(echo "$json_input" | jq -r '.context_window.remaining_percentage // empty')
+
+    # Build percentage display
+    if [ -n "$used_pct" ]; then
+        official_pct=${used_pct%.*}  # Remove decimal part
+        remaining=${remaining_pct%.*}
+        # Show official percentage with remaining
+        pct_display="🧠 ${official_pct}% (${remaining}% left)"
+        percentage=$official_pct
+
+        # Check if our calculation differs by more than 2% - warn if so
+        diff=$((our_percentage - official_pct))
+        [ "$diff" -lt 0 ] && diff=$((-diff))  # Absolute value
+        if [ "$diff" -gt 2 ]; then
+            token_warning="⚠️ "
+        else
+            token_warning=""
+        fi
+    else
+        pct_display="🧠 ${our_percentage}%"
+        percentage=$our_percentage
+        token_warning=""
+    fi
 
     # Color coding based on context usage (warning for autocompact)
     # Yellow > 60%, Red > 70%
     if [ "$percentage" -gt 70 ]; then
         # Red
-        token_details="\033[31m🧠 ${percentage}% | 📥 ${input_k}k 📤 ${output_k}k\033[0m"
+        token_details="\033[31m${pct_display} | ${token_warning}📥 ${input_k}k 📤 ${output_k}k\033[0m"
     elif [ "$percentage" -gt 60 ]; then
         # Yellow
-        token_details="\033[33m🧠 ${percentage}% | 📥 ${input_k}k 📤 ${output_k}k\033[0m"
+        token_details="\033[33m${pct_display} | ${token_warning}📥 ${input_k}k 📤 ${output_k}k\033[0m"
     else
-        token_details="🧠 ${percentage}% | 📥 ${input_k}k 📤 ${output_k}k"
+        token_details="${pct_display} | ${token_warning}📥 ${input_k}k 📤 ${output_k}k"
     fi
 fi
 
