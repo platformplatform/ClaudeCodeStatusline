@@ -142,16 +142,82 @@ block_time=$(echo "$ccusage_output" | sed -n 's/.*\$[0-9.]* block (\([^)]*\) lef
 daily_cost=$(echo "$ccusage_output" | sed -n 's/.*\$\([0-9.]*\) today.*/📅 $\1 today/p')
 
 # -----------------------------------------------------------------------------
-# Build final output
+# Build final output (responsive based on terminal width)
 # -----------------------------------------------------------------------------
-output="📁 $directory_name"
 
-[ -n "$git_display" ] && output="$output | $git_display"
-[ -n "$model_display_name" ] && output="$output | 🤖 $model_display_name"
-[ -n "$token_details" ] && output="$output | $token_details"
-[ -n "$api_time" ] && output="$output | $api_time"
-[ -n "$session_cost" ] && output="$output | $session_cost"
-[ -n "$daily_cost" ] && output="$output | $daily_cost"
-[ -n "$block_time" ] && output="$output | $block_time"
+# Get terminal width by querying parent shell's TTY directly
+get_term_width() {
+    local pid=$$
+    for _ in 1 2 3 4 5 6 7 8 9 10; do
+        local tty_device=$(ps -o tty= -p "$pid" 2>/dev/null | tr -d ' ')
+        if [ -n "$tty_device" ] && [ "$tty_device" != "??" ]; then
+            local size=$(stty -f "/dev/$tty_device" size 2>/dev/null)
+            if [ -n "$size" ]; then
+                echo "$size" | awk '{print $2}'
+                return
+            fi
+        fi
+        # Get parent PID
+        pid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
+        [ -z "$pid" ] && break
+    done
+    echo "150"
+}
+term_width=$(get_term_width)
+# Ensure we have a valid number
+[[ "$term_width" =~ ^[0-9]+$ ]] || term_width=150
 
-echo -e "$output"
+# Function to get display width (accounts for emojis taking 2 columns)
+get_display_width() {
+    # Strip ANSI codes
+    local stripped
+    stripped=$(echo -e "$1" | sed $'s/\033\[[0-9;]*m//g' | sed 's/\\033\[[0-9;]*m//g')
+    local char_count=${#stripped}
+    # Count emojis (they take 2 columns each, so add 1 extra per emoji)
+    local emoji_count=$(echo -e "$stripped" | grep -o '[📁🌿🤖🧠📥📤⧖💰📅⏰🔥↑↓⬆⬇]' | wc -l | tr -d ' ')
+    printf '%s' "$((char_count + emoji_count))"
+}
+
+# Build full output in desired order
+full_output=""
+[ -n "$directory_name" ] && full_output="📁 $directory_name"
+[ -n "$git_display" ] && { [ -n "$full_output" ] && full_output="$full_output | $git_display" || full_output="$git_display"; }
+[ -n "$model_display_name" ] && { [ -n "$full_output" ] && full_output="$full_output | 🤖 $model_display_name" || full_output="🤖 $model_display_name"; }
+[ -n "$token_details" ] && { [ -n "$full_output" ] && full_output="$full_output | $token_details" || full_output="$token_details"; }
+[ -n "$api_time" ] && { [ -n "$full_output" ] && full_output="$full_output | $api_time" || full_output="$api_time"; }
+[ -n "$session_cost" ] && { [ -n "$full_output" ] && full_output="$full_output | $session_cost" || full_output="$session_cost"; }
+[ -n "$daily_cost" ] && { [ -n "$full_output" ] && full_output="$full_output | $daily_cost" || full_output="$daily_cost"; }
+[ -n "$block_time" ] && { [ -n "$full_output" ] && full_output="$full_output | $block_time" || full_output="$block_time"; }
+
+# Check if it fits
+current_width=$(get_display_width "$full_output")
+
+# If too wide, progressively remove lowest priority items
+# Priority order to remove: block_time, api_time, directory, daily_cost, session_cost, git
+if [ "$current_width" -gt "$term_width" ] && [ -n "$block_time" ]; then
+    full_output=$(echo "$full_output" | sed "s/ | ${block_time//\//\\/}//")
+    current_width=$(get_display_width "$full_output")
+fi
+if [ "$current_width" -gt "$term_width" ] && [ -n "$api_time" ]; then
+    full_output=$(echo "$full_output" | sed "s/ | ${api_time//\//\\/}//")
+    current_width=$(get_display_width "$full_output")
+fi
+if [ "$current_width" -gt "$term_width" ] && [ -n "$directory_name" ]; then
+    full_output=$(echo "$full_output" | sed "s/📁 ${directory_name} | //")
+    current_width=$(get_display_width "$full_output")
+fi
+if [ "$current_width" -gt "$term_width" ] && [ -n "$daily_cost" ]; then
+    full_output=$(echo "$full_output" | sed "s/ | ${daily_cost//\//\\/}//")
+    current_width=$(get_display_width "$full_output")
+fi
+if [ "$current_width" -gt "$term_width" ] && [ -n "$session_cost" ]; then
+    full_output=$(echo "$full_output" | sed "s/ | ${session_cost//\//\\/}//")
+    current_width=$(get_display_width "$full_output")
+fi
+if [ "$current_width" -gt "$term_width" ] && [ -n "$git_display" ]; then
+    # Git display has ANSI codes, need to handle carefully
+    full_output=$(echo -e "$full_output" | sed 's/[^|]*🌿[^|]* | //')
+    current_width=$(get_display_width "$full_output")
+fi
+
+echo -e "$full_output"
