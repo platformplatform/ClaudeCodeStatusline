@@ -190,6 +190,8 @@ get_term_width() {
 term_width=$(get_term_width)
 # Ensure we have a valid number
 [[ "$term_width" =~ ^[0-9]+$ ]] || term_width=150
+# Reserve 25 chars for system messages on the right
+term_width=$((term_width - 25))
 
 # Function to get display width (accounts for emojis taking 2 columns)
 get_display_width() {
