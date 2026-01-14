@@ -203,7 +203,7 @@ get_display_width() {
     stripped=$(echo -e "$1" | sed $'s/\033\[[0-9;]*m//g' | sed 's/\\033\[[0-9;]*m//g')
     local char_count=${#stripped}
     # Count emojis (they take 2 columns each, so add 1 extra per emoji)
-    local emoji_count=$(echo -e "$stripped" | grep -o '[📁🌿🤖🧠📥📤⧖💰📅⏰🔥↑↓⬆⬇]' | wc -l | tr -d ' ')
+    local emoji_count=$(echo -e "$stripped" | grep -o '[📁🌿🤖🧠📥📤⧖💰📅⏰🔥↑↓⬆⬇⚠️]' | wc -l | tr -d ' ')
     printf '%s' "$((char_count + emoji_count))"
 }
 
