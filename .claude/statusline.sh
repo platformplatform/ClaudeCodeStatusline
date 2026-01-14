@@ -118,6 +118,9 @@ if [ "$usage" != "null" ]; then
     else
         token_details="${pct_display} | ${token_warning}📥 ${input_k}k 📤 ${output_k}k"
     fi
+else
+    # No usage data yet (session start) - show placeholder
+    token_details="🧠 --% | 📥 --k 📤 --k"
 fi
 
 # -----------------------------------------------------------------------------
