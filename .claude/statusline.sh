@@ -19,7 +19,7 @@ directory_name=$(basename "$current_directory")
 # -----------------------------------------------------------------------------
 git_display=""
 if git -C "$current_directory" rev-parse --git-dir > /dev/null 2>&1; then
-    git_branch=$(git -C "$current_directory" --no-optional-locks rev-parse --abbrev-ref HEAD 2>/dev/null)
+    git_branch=$(git -C "$current_directory" --no-optional-locks branch --show-current 2>/dev/null)
     if [ -n "$git_branch" ]; then
         # Check for uncommitted changes (dirty)
         if git -C "$current_directory" --no-optional-locks diff --quiet 2>/dev/null && \
