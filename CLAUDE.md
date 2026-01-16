@@ -30,7 +30,6 @@ This repository maintains a custom Claude Code statusline configuration that dis
 ### Configuration
 - Local statusline configured in `.claude/settings.json`
 - Points to executable script `.claude/statusline.sh`
-- Updates every 300ms when conversation changes
 - Receives JSON session data via stdin
 
 ### JSON Input Structure

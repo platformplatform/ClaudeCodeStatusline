@@ -222,13 +222,18 @@ full_output=""
 current_width=$(get_display_width "$full_output")
 
 # If too wide, progressively remove lowest priority items
-# Priority order to remove: block_time, api_time, directory, daily_cost, session_cost, git
+# Priority order to remove: block_time, api_time, remaining_pct, directory, daily_cost, session_cost, git
 if [ "$current_width" -gt "$term_width" ] && [ -n "$block_time" ]; then
     full_output=$(echo "$full_output" | sed "s/ | ${block_time//\//\\/}//")
     current_width=$(get_display_width "$full_output")
 fi
 if [ "$current_width" -gt "$term_width" ] && [ -n "$api_time" ]; then
     full_output=$(echo "$full_output" | sed "s/ | ${api_time//\//\\/}//")
+    current_width=$(get_display_width "$full_output")
+fi
+if [ "$current_width" -gt "$term_width" ]; then
+    # Remove "(XX% left)" from context percentage
+    full_output=$(echo "$full_output" | sed 's/ ([0-9]*% left)//')
     current_width=$(get_display_width "$full_output")
 fi
 if [ "$current_width" -gt "$term_width" ] && [ -n "$directory_name" ]; then
