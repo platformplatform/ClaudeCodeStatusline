@@ -2,6 +2,17 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## CRITICAL: Development Workflow
+
+**NEVER commit or install globally without explicit user approval.**
+
+1. Make changes to `.claude/statusline.sh` in this repository
+2. Test the changes locally and verify they work
+3. **WAIT for the user to review and explicitly request commit/install**
+4. Only then commit and copy to `~/.claude/statusline.sh`
+
+This is a strict requirement. Do not proactively commit or install. Do not ask "should I commit?" - wait for the user to tell you to commit.
+
 ## Repository Purpose
 
 This repository maintains a custom Claude Code statusline configuration that displays comprehensive session information including git branch, model details, cost tracking, and usage metrics.
@@ -129,7 +140,7 @@ Current format displays two lines:
 - Handles different models (Sonnet 4, Sonnet 4 1M, Opus 4.1) correctly
 
 **Terminal Width Management:**
-- Auto-detects terminal width with `tput cols`
-- Pads both lines to fill entire terminal width
+- Auto-detects terminal width via parent shell TTY
+- Reserves 25 characters for system messages on the right
+- Progressively removes low-priority elements when terminal is narrow
 - Truncates user messages to prevent line wrapping
-- Never update the global status line until I have tested it in this reposiotry and approved that you can update the global status line.
